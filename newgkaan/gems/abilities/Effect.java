@@ -2,66 +2,62 @@ package newgkaan.gems.abilities;
 
 import java.util.*;
 
-import newgkaan.gems.Main;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.PotionEffectAddEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
-import org.bukkit.scheduler.BukkitRunnable;
 
 public class Effect implements Listener {
-  @EventHandler
-public void onPotionEffectAdd(PotionEffectAddEvent event) {
-    PotionEffect effect = event.getEffect();
-    if (isEffectHandled(effect)) {
-        handleEffect(event, effect);
-    }
-}
+   private final Map<PotionEffectType, Set<UUID>> handled = new HashMap<>();
 
-private boolean isEffectHandled(PotionEffect effect) {
-    PotionEffectType type = effect.getType();
-    return !effect.getCause().equals(EffectCause.PLUGIN) &&
-           (type.equals(PotionEffectType.SLOW) || 
-            type.equals(PotionEffectType.WEAKNESS) || 
-            type.equals(PotionEffectType.POISON));
-}
 
-private void handleEffect(PotionEffectAddEvent event, PotionEffect effect) {
-    Player player = (Player) event.getEntity();
-    int multiplier = calculateMultiplier(player);
-    if (multiplier == 0) {
-        return;
-    }
+   @EventHandler
+   public void onPotionEffectAdd(PotionEffectAddEvent event) {
+      PotionEffect effect = event.getEffect();
+      PotionEffectType effectType = effect.getType();
 
-    event.setCancelled(true);
-    List<UUID> handledList = handled.computeIfAbsent(effect.getType(), k -> new ArrayList<>());
-    handledList.add(player.getUniqueId());
+      if (event.getCause() == PotionEffectAddEvent.EffectCause.PLUGIN || !(event.getEntity() instanceof Player))
+         return;
 
-    int duration = effect.getDuration();
-    duration -= duration / 100 * multiplier;
-    PotionEffect newEffect = new PotionEffect(effect.getType(), duration, effect.getAmplifier());
-    player.addPotionEffect(newEffect);
-}
+      Player player = (Player) event.getEntity();
+      if (effectType.equals(PotionEffectType.SLOW) || effectType.equals(PotionEffectType.WEAKNESS) || effectType.equals(PotionEffectType.POISON)) {
+         int multiplier = calculateMultiplier(player);
+         if (multiplier > 0) {
+            handleEffect(event, effect, multiplier);
+         }
+      }
+   }
 
-private int calculateMultiplier(Player player) {
-    List<ItemStack> armorContents = new ArrayList<>(Arrays.asList(player.getInventory().getArmorContents()));
-    int multiplier = 0;
-    for (ItemStack item : armorContents) {
-        if (item != null && item.hasItemMeta()) {
-            List<String> lore = item.getItemMeta().getLore();
-            if (lore != null && !lore.isEmpty()) {
-                for (String line : lore) {
-                    if (line.contains("<Item#438#12#")) {
-                        multiplier += 10;
-                        break;
-                    }
-                }
+   private int calculateMultiplier(Player player) {
+      int multiplier = 0;
+      for (ItemStack item : player.getInventory().getArmorContents()) {
+         if (item != null && item.hasItemMeta() && item.getItemMeta().getLore() != null) {
+            for (String loreLine : item.getItemMeta().getLore()) {
+               if (loreLine.contains("<Item#438#12#")) {
+                  multiplier += 10;
+                  break;
+               }
             }
-        }
-    }
-    return multiplier;
-}
+         }
+      }
+      return multiplier;
+   }
+
+   private void handleEffect(PotionEffectAddEvent event, PotionEffect effect, int multiplier) {
+      int duration = effect.getDuration() - (effect.getDuration() / 100 * multiplier);
+      if (duration <= 0) {
+         event.setCancelled(true);
+         return;
+      }
+
+      Set<UUID> handledList = handled.computeIfAbsent(effect.getType(), k -> new HashSet<>());
+      handledList.add(event.getEntity().getUniqueId());
+      event.setCancelled(true);
+      PotionEffect newEffect = new PotionEffect(effect.getType(), duration, effect.getAmplifier());
+      event.getEntity().addPotionEffect(newEffect);
+   }
 
 }
