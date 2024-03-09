@@ -33,7 +33,6 @@ public class Main extends JavaPlugin {
       this.getServer().getPluginManager().registerEvents(new PlayerDeath(), this);
       this.getServer().getPluginManager().registerEvents(new PlayerDamage(), this);
       this.getServer().getPluginManager().registerEvents(new Effect(), this);
-      new Effect().init(this);
       this.getCommand("gemmaster").setExecutor(new GemMaster());
    }
 
