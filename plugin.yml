@@ -1,0 +1,8 @@
+name: Gems
+author: AtomicKill7
+version: 1.0
+main: newgkaan.gems.Main
+
+commands:
+  gemmaster:
+    description: ''
